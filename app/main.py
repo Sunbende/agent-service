@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
+from app.modules.product.router import router as product_router
 import uvicorn
 
 # 初始化日志系统
@@ -28,6 +29,8 @@ app = FastAPI(
     debug=settings.app.debug,
     lifespan=lifespan,
 )
+# 注册产品业务路由。
+app.include_router(product_router)
 
 @app.get("/health", summary="健康检测接口")
 async def health_check() -> dict[str, str]:
