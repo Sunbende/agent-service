@@ -42,7 +42,8 @@ class DatabaseSettings(EnvSettings):
             host=self.host,
             port=self.port,
             username=self.user,
-            password=self.password
+            password=self.password,
+            path=self.name,
         ).encoded_string()
 
 class LLMSettings(EnvSettings):
