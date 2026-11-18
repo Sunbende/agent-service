@@ -1,17 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
-from langgraph.checkpoint.postgres import PostgresSaver
+from fastapi import APIRouter, Depends, Header, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.database import get_session
 from app.modules.chat_threads.models import ChatThread
-from app.modules.chat_threads.schemas import (
-    ChatHistoryResponse,
-    ChatThreadCreate,
-    ChatThreadResponse,
-)
+from app.modules.chat_threads.schemas import ChatThreadCreate, ChatThreadResponse
 from app.modules.chat_threads.service import ChatThreadService
 
 router = APIRouter(prefix="/api/v1/chat-threads", tags=["会话管理相关接口"])
@@ -22,10 +17,6 @@ def get_chat_thread_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChatThreadService:
     return ChatThreadService(session)
-
-
-def get_checkpointer(request: Request) -> PostgresSaver:
-    return request.app.state.checkpointer
 
 
 # 会话接口统一从 x-user-id 请求头读取演示阶段的用户 ID。
@@ -46,17 +37,6 @@ async def list_chat_threads(
 ) -> list[ChatThread]:
     """查询当前用户的会话列表。"""
     return await service.list_by_user(user_id)
-
-
-@router.get("/{thread_id}/messages", response_model=ChatHistoryResponse)
-async def get_chat_history(
-    thread_id: UUID,
-    user_id: Annotated[int, Header(alias="x-user-id")],
-    service: Annotated[ChatThreadService, Depends(get_chat_thread_service)],
-    checkpointer: Annotated[PostgresSaver, Depends(get_checkpointer)],
-) -> ChatHistoryResponse:
-    """查询当前用户的会话历史和待确认状态。"""
-    return await service.get_history(thread_id, user_id, checkpointer)
 
 
 @router.patch("/{thread_id}", response_model=ChatThreadResponse)

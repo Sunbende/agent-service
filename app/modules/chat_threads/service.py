@@ -1,17 +1,10 @@
 from uuid import UUID
 
-from langgraph.checkpoint.postgres import PostgresSaver
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infra.checkpoint import load_thread_checkpoint
-from app.modules.chat_threads.exceptions import (
-    ChatHistoryNotFoundError,
-    ChatThreadNotFoundError,
-)
-from app.modules.chat_threads.history import build_chat_history
+from app.modules.chat_threads.exceptions import ChatThreadNotFoundError
 from app.modules.chat_threads.models import ChatThread
 from app.modules.chat_threads.repository import ChatThreadRepository
-from app.modules.chat_threads.schemas import ChatHistoryResponse
 
 
 class ChatThreadService:
@@ -31,15 +24,6 @@ class ChatThreadService:
     async def list_by_user(self, user_id: int) -> list[ChatThread]:
         return await self.repository.list_by_user(user_id)
 
-    async def get_history(
-        self, thread_id: UUID, user_id: int, checkpointer: PostgresSaver
-    ) -> ChatHistoryResponse:
-        # 先核对元数据中的会话归属，再按会话 ID 读取消息检查点。
-        if await self.repository.find_owned(thread_id, user_id) is None:
-            raise ChatHistoryNotFoundError
-        checkpoint = await load_thread_checkpoint(checkpointer, thread_id)
-        return build_chat_history(thread_id, checkpoint)
-
     async def rename(self, thread_id: UUID, user_id: int, title: str) -> ChatThread:
         async with self.session.begin():
             thread = await self._require_owned(thread_id, user_id)
@@ -57,7 +41,7 @@ class ChatThreadService:
 
     async def _require_owned(self, thread_id: UUID, user_id: int) -> ChatThread:
         # 按会话 ID 和用户 ID 一起查询，找不到时交给全局异常处理器响应。
-        thread = await self.repository.find_owned(thread_id, user_id, for_update=True)
+        thread = await self.repository.find_owned(thread_id, user_id)
         if thread is None:
             raise ChatThreadNotFoundError
         return thread

@@ -25,16 +25,13 @@ class ChatThreadRepository:
         )
         return list(result.all())
 
-    async def find_owned(
-        self, thread_id: UUID, user_id: int, *, for_update: bool = False
-    ) -> ChatThread | None:
-        query = select(ChatThread).where(
-            ChatThread.id == thread_id, ChatThread.user_id == user_id
+    async def find_owned(self, thread_id: UUID, user_id: int) -> ChatThread | None:
+        # 在写事务中锁定会话，避免重命名和删除同时修改同一条记录。
+        return await self.session.scalar(
+            select(ChatThread)
+            .where(ChatThread.id == thread_id, ChatThread.user_id == user_id)
+            .with_for_update()
         )
-        # 写事务锁定会话，避免重命名和删除同时修改同一条记录。
-        if for_update:
-            query = query.with_for_update()
-        return await self.session.scalar(query)
 
     async def delete(self, thread: ChatThread) -> None:
         # 将对象标记为待删除，随当前事务一并提交。

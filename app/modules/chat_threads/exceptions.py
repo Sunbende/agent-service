@@ -8,9 +8,3 @@ class ChatThreadNotFoundError(ApplicationError):
     status_code = 400
     code = "CHAT_THREAD_NOT_FOUND"
     message = "会话不存在或不属于当前用户"
-
-
-class ChatHistoryNotFoundError(ChatThreadNotFoundError):
-    """历史接口使用 404 表示会话不存在或不可访问。"""
-
-    status_code = 404

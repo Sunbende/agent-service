@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.exceptions import ApplicationError
 from app.core.logging import configure_logging, get_logger
-from app.infra.checkpoint import open_checkpointer
 from app.modules.chat_threads.router import router as chat_thread_router
 from app.modules.product.router import router as product_router
 
@@ -22,9 +21,7 @@ async def lifespan(app: FastAPI):
     from app.infra.database import check_database, close_database
     try:
         await check_database()
-        async with open_checkpointer() as checkpointer:
-            app.state.checkpointer = checkpointer
-            yield
+        yield
     finally:
         logger.info("应用关闭中... ")
         await close_database()
