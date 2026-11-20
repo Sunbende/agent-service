@@ -19,12 +19,15 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info(f"【{settings.app.name}】应用启动中...")
     from app.infra.database import check_database, close_database
+    from app.infra.checkpointer import init_checkpointer, close_checkpointer
     try:
         await check_database()
+        await init_checkpointer()
         yield
     finally:
         logger.info("应用关闭中... ")
         await close_database()
+        await close_checkpointer()
 
 app = FastAPI(
     title=settings.app.name,
@@ -52,11 +55,12 @@ async def health_check() -> dict[str, str]:
     logger.info("执行健康检查")
     return {"status": "ok"}
 
-
 if __name__ == "__main__":
+    import sys
     uvicorn.run(
         "app.main:app",
         host=settings.app.host,
         port=settings.app.port,
-        reload=False
+        reload=False,
+        loop= "asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto",
     )
