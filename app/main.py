@@ -7,8 +7,9 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.exceptions import ApplicationError
 from app.core.logging import configure_logging, get_logger
-from app.modules.chat_threads.router import router as chat_thread_router
+from app.modules.chat_thread.router import router as chat_thread_router
 from app.modules.product.router import router as product_router
+from app.modules.chat.router import router as chat_router
 
 # 初始化日志系统
 configure_logging(settings.logging.level)
@@ -20,13 +21,20 @@ async def lifespan(app: FastAPI):
     logger.info(f"【{settings.app.name}】应用启动中...")
     from app.infra.database import check_database, close_database
     from app.infra.checkpointer import init_checkpointer, close_checkpointer
+    from app.agents.insurance_advisor import init_insurance_agent
     try:
+        # 1. 初始化数据库连接池
         await check_database()
-        await init_checkpointer()
+        # 2. 初始化Checkpointpointer连接池
+        checkpointer = await init_checkpointer()
+        # 3. 初始化保险顾问Agent,并保存至全局state
+        app.state.agent = init_insurance_agent(checkpointer)
         yield
     finally:
         logger.info("应用关闭中... ")
+        # 4. 关闭数据库连接池
         await close_database()
+        # 5. 关闭Checkpointpointer连接池
         await close_checkpointer()
 
 app = FastAPI(
@@ -37,6 +45,8 @@ app = FastAPI(
 # 将产品和会话模块的路由注册到同一个 FastAPI 应用。
 app.include_router(product_router)
 app.include_router(chat_thread_router)
+app.include_router(chat_router)
+
 
 
 # FastAPI 按异常类型匹配，全应用的 ApplicationError 子类都由此处理。
